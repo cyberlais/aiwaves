@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Document</title>
+    </head>
+    <body
+        style="
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(245deg, #202660 0%, #4b3f7c 100%);
+        "
+    >
+        <section id="hero" style="width: 100%; height: 100%"></section>
+    </body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        // Получаем элемент с id "hero"
+        var heroElement = document.getElementById("hero");
+        var heroWidth = heroElement.clientWidth;
+        var heroHeight = heroElement.clientHeight;
+
+        // Создаем сцену
+        var scene = new THREE.Scene();
+
+        // Создаем камеру
+        var camera = new THREE.PerspectiveCamera(
+            75,
+            heroWidth / heroHeight,
+            0.1,
+            1000
+        );
+        // Устанавливаем камеру в позицию
+        camera.position.set(0, -3.5, 0.7);
+        camera.lookAt(new THREE.Vector3(0.3, 1, 0));
+
+        // Создаем рендерер
+        var renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setClearColor(0x000000, 0); // Прозрачный фон
+
+        // Добавляем канвас как фон для элемента с id "hero"
+        heroElement.appendChild(renderer.domElement);
+        renderer.setSize(heroWidth, heroHeight);
+
+        window.addEventListener("resize", function () {
+            heroWidth = heroElement.clientWidth;
+            heroHeight = heroElement.clientHeight;
+
+            renderer.setSize(heroWidth, heroHeight);
+            camera.aspect = heroWidth / heroHeight;
+            camera.updateProjectionMatrix();
+        });
+
+        // Создаем плоскость
+        var geometry = new THREE.PlaneGeometry(14, 7, 64, 64); // Увеличиваем количество сегментов
+        var material = new THREE.ShaderMaterial({
+            vertexShader: `
+        varying vec2 vUv;
+        uniform float time;
+
+        // Функция для создания хаотичных волн
+        float random(float x, float y) {
+            return fract(sin(dot(vec2(x, y), vec2(12.9898, 78.233))) * 43758.5453);
+        }
+
+        void main() {
+            vUv = uv;
+            vec3 newPosition = position;
+
+            // Имитация хаотичных волн
+            float turbulence = 0.2;
+            float amplitude = 0.5;
+            float frequency = 0.15;
+
+            for (int i = 1; i <= 4; i++) {
+                float power = pow(2.0, float(i));
+                newPosition.z += amplitude * (1.0 / power) * sin((time + random(position.x, position.y)) * frequency * power);
+            }
+
+            // Дополнительная асимметричная деформация по X, изменяющаяся во времени
+            float deformationX = 0.2; // Измените по вашему усмотрению
+            float timeFactorX = sin(time * 0.5);
+            newPosition.x += deformationX * sin((newPosition.y + timeFactorX) * 3.0);
+
+            // Дополнительная асимметричная деформация по Y, изменяющаяся во времени
+            float deformationY = 0.15; // Измените по вашему усмотрению
+            float timeFactorY = sin(time * 0.5);
+            newPosition.y += deformationY * cos((newPosition.x + timeFactorY) * 3.0);
+
+            // Волнообразные накаты по Z
+            float deformationZ = 0.1; // Измените по вашему усмотрению
+            float timeFactorZ = sin(time * 0.3);
+            newPosition.z += deformationZ * sin((newPosition.x + timeFactorZ) * 3.0) +
+                             deformationZ * cos((newPosition.y + timeFactorZ) * 3.0);
+
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(newPosition, 1.0);
+        }
+    `,
+            fragmentShader: `
+        varying vec2 vUv;
+
+        void main() {
+            gl_FragColor = vec4(vUv.x, vUv.y, 1.0, 1.0);
+        }
+    `,
+            wireframe: true,
+            transparent: true,
+        });
+
+        var plane = new THREE.Mesh(geometry, material);
+
+        // Добавляем плоскость в сцену
+        scene.add(plane);
+
+        // Создаем функцию анимации
+        var animate = function () {
+            requestAnimationFrame(animate);
+
+            // Обновляем шейдер
+            material.uniforms = material.uniforms || {};
+            material.uniforms.time = { value: performance.now() * 0.001 };
+
+            // Рендерим сцену
+            renderer.render(scene, camera);
+        };
+
+        // Вызываем функцию анимации
+        animate();
+    </script>
+</html>
